@@ -3,9 +3,12 @@ const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-app.use(express.json());
-app.use(cors());
 
+app.use(cors({
+  origin: "*"
+}));
+
+app.use(express.json());
 // ─── In-Memory Store ──────────────────────────────────────────────────────────
 const users = [
   { id: 'u1', name: 'Alice Admin', email: 'admin@demo.com', password: 'admin123', role: 'admin' },
@@ -95,14 +98,17 @@ app.post('/login', (req, res) => {
 // ─── Task Routes ──────────────────────────────────────────────────────────────
 app.get('/tasks', (req, res) => {
   const { userId, role } = req.query;
-  if (!userId) return res.status(400).json({ error: 'userId query param required.' });
 
-  const result =
-    role === 'admin'
-      ? tasks
-      : tasks.filter(t => t.assignedTo === userId);
+  let result = tasks;
 
-  // Enrich with assignee name
+  // If not admin, filter by userId
+  if (role !== 'admin') {
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+    result = tasks.filter(t => t.assignedTo === userId);
+  }
+
   const enriched = result.map(t => ({
     ...t,
     assigneeName: users.find(u => u.id === t.assignedTo)?.name || 'Unassigned',
@@ -178,6 +184,10 @@ app.put('/tasks/:id', (req, res) => {
 // Expose user list (admin use — for assigning tasks)
 app.get('/users', (req, res) => {
   res.json(users.map(({ password: _, ...u }) => u));
+});
+
+app.get("/", (req, res) => {
+  res.json({ message: "Backend is running 🚀" });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
